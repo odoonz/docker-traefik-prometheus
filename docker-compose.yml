@@ -1,42 +1,6 @@
-version: '3.7'
+version: '3.8'
 
 services:
-  traefik:
-    image: traefik:v2.0.4
-    command:
-      - "--log.level=DEBUG"
-      - "--api.insecure=true"
-      - "--metrics.prometheus=true"
-      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
-      - "--providers.docker=true"
-      - "--providers.docker.swarmmode=true"
-      - "--providers.docker.watch"
-    networks:
-      - traefik
-      - inbound
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      - target: 80
-        published: 80
-        mode: host
-      - target: 443
-        published: 443
-        mode: host
-      - target: 8080
-        published: 8080
-        protocol: tcp
-        mode: ingress
-    deploy:
-      mode: global
-      placement:
-        constraints:
-          - node.role == manager
-      update_config:
-        parallelism: 1
-        delay: 10s
-      restart_policy:
-        condition: on-failure
   prometheus:
     image: prom/prometheus
     volumes:
@@ -48,18 +12,15 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
     networks:
-      - inbound
-    deploy:
-      labels:
-       - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)"
-       - "traefik.http.routers.prometheus.service=prometheus"
-       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-       - "traefik.docker.network=inbound"
-      placement:
-        constraints:
-        - node.role==manager
-      restart_policy:
-        condition: on-failure
+      - inverseproxy_shared
+    labels:
+     - traefik.http.routers.prometheus.rule: Host(`prometheus.staging.odoo.nz`)"
+     - traefik.http.routers.prometheus.service: "prometheus"
+     - traefik.http.services.prometheus.loadbalancer.server.port: "9090"
+     - traefik.docker.network: "inverseproxy_shared"
+     - traefik.http.routers.prometheus.tls: "true"
+     - traefik.http.routers.prometheus.tls.certresolver: "letsencrypt"
+    restart: unless-stopped
   
   grafana:
     image: grafana/grafana
@@ -71,27 +32,21 @@ services:
     env_file:
       - ./grafana/config.monitoring
     networks:
-      - inbound
+      - inverseproxy_shared
     user: "104"
-    deploy:
-      labels:
-        - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
-        - "traefik.http.routers.grafana.service=grafana"
-        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-        - "traefik.docker.network=inbound"
-      placement:
-        constraints:
-          - node.role == manager
-      restart_policy:
-        condition: on-failure
+
+    labels:
+      - traefik.http.routers.grafana.rule: "Host(`grafana.staging.odoo.nz`)"
+      - traefik.http.routers.grafana.service: "grafana"
+      - traefik.http.services.grafana.loadbalancer.server.port: "3000"
+      - traefik.docker.network: "inverseproxy_shared"
+      - traefik.http.routers.prometheus.tls: "true"
+      - traefik.http.routers.prometheus.tls.certresolver: "letsencrypt"
+     restart: unless-stopped
 
 networks:
-  traefik:
-    driver: overlay
-    name: traefik
-  inbound:
-    driver: overlay
-    name: inbound
+  inverseproxy_shared:
+    external: 1
 
 volumes:
     prometheus_data: {}
