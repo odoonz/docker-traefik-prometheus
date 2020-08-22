@@ -3,6 +3,7 @@ version: '3.8'
 services:
   prometheus:
     image: prom/prometheus
+    restart: unless-stopped
     volumes:
       - ./prometheus/:/etc/prometheus/
       - prometheus_data:/prometheus
@@ -14,16 +15,16 @@ services:
     networks:
       - inverseproxy_shared
     labels:
-     - traefik.http.routers.prometheus.rule: Host(`prometheus.staging.odoo.nz`)"
+     - traefik.http.routers.prometheus.rule: "Host(`prometheus.staging.odoo.nz`)"
      - traefik.http.routers.prometheus.service: "prometheus"
      - traefik.http.services.prometheus.loadbalancer.server.port: "9090"
      - traefik.docker.network: "inverseproxy_shared"
      - traefik.http.routers.prometheus.tls: "true"
      - traefik.http.routers.prometheus.tls.certresolver: "letsencrypt"
-    restart: unless-stopped
-  
+
   grafana:
     image: grafana/grafana
+    restart: unless-stopped
     depends_on:
       - prometheus
     volumes:
@@ -34,7 +35,6 @@ services:
     networks:
       - inverseproxy_shared
     user: "104"
-
     labels:
       - traefik.http.routers.grafana.rule: "Host(`grafana.staging.odoo.nz`)"
       - traefik.http.routers.grafana.service: "grafana"
@@ -42,12 +42,11 @@ services:
       - traefik.docker.network: "inverseproxy_shared"
       - traefik.http.routers.prometheus.tls: "true"
       - traefik.http.routers.prometheus.tls.certresolver: "letsencrypt"
-     restart: unless-stopped
 
 networks:
   inverseproxy_shared:
     external: 1
 
 volumes:
-    prometheus_data: {}
-    grafana_data: {}
+  prometheus_data: {}
+  grafana_data: {}
